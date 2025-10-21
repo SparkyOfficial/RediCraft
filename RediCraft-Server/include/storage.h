@@ -8,6 +8,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <shared_mutex>
 #include <vector>
 #include <chrono>
@@ -18,6 +19,7 @@ public:
     struct DataItem;
     struct HashItem;
     struct ListItem;
+    struct SetItem;
     
     Storage();
     
@@ -41,6 +43,13 @@ public:
     bool rpop(const std::string& key, std::string& value);
     std::vector<std::string> lrange(const std::string& key, long long start, long long end);
     
+    // Set operations
+    long long sadd(const std::string& key, const std::vector<std::string>& members);
+    long long srem(const std::string& key, const std::vector<std::string>& members);
+    bool sismember(const std::string& key, const std::string& member);
+    std::unordered_set<std::string> smembers(const std::string& key);
+    long long scard(const std::string& key);
+    
     // Expiration operations
     bool expire(const std::string& key, long long seconds);
     long long ttl(const std::string& key);
@@ -49,6 +58,7 @@ public:
     const std::unordered_map<std::string, DataItem>& getStringData() const;
     const std::unordered_map<std::string, HashItem>& getHashData() const;
     const std::unordered_map<std::string, ListItem>& getListData() const;
+    const std::unordered_map<std::string, SetItem>& getSetData() const;
 
     // Struct definitions
     struct DataItem {
@@ -83,12 +93,23 @@ public:
             expiry = std::chrono::steady_clock::time_point();
         }
     };
+    
+    struct SetItem {
+        std::unordered_set<std::string> members;
+        std::chrono::steady_clock::time_point expiry;
+        bool has_expiry;
+        
+        SetItem() : has_expiry(false) {
+            expiry = std::chrono::steady_clock::time_point();
+        }
+    };
 
 private:
     // Different storage types for different data structures
     std::unordered_map<std::string, DataItem> string_data_;
     std::unordered_map<std::string, HashItem> hash_data_;
     std::unordered_map<std::string, ListItem> list_data_;
+    std::unordered_map<std::string, SetItem> set_data_;
     
     mutable std::shared_mutex mutex_;
     

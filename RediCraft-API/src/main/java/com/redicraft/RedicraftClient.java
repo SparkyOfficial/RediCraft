@@ -10,6 +10,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -384,6 +386,178 @@ public class RedicraftClient {
     }
     
     /**
+     * Add one or more members to a set
+     * @param key the set key
+     * @param members the members to add
+     * @return the number of elements that were added to the set
+     * @throws IOException if communication fails
+     */
+    public long sadd(String key, String... members) throws IOException {
+        StringBuilder command = new StringBuilder("SADD " + key);
+        for (String member : members) {
+            command.append(" ").append(member);
+        }
+        out.println(command.toString());
+        
+        String response = in.readLine();
+        try {
+            return Long.parseLong(response);
+        } catch (NumberFormatException e) {
+            throw new IOException("Invalid response from server: " + response);
+        }
+    }
+    
+    /**
+     * Add one or more members to a set asynchronously
+     * @param key the set key
+     * @param members the members to add
+     * @return CompletableFuture that will complete with the result
+     */
+    public CompletableFuture<Long> saddAsync(String key, String... members) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return sadd(key, members);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }, executor);
+    }
+    
+    /**
+     * Remove one or more members from a set
+     * @param key the set key
+     * @param members the members to remove
+     * @return the number of members that were removed from the set
+     * @throws IOException if communication fails
+     */
+    public long srem(String key, String... members) throws IOException {
+        StringBuilder command = new StringBuilder("SREM " + key);
+        for (String member : members) {
+            command.append(" ").append(member);
+        }
+        out.println(command.toString());
+        
+        String response = in.readLine();
+        try {
+            return Long.parseLong(response);
+        } catch (NumberFormatException e) {
+            throw new IOException("Invalid response from server: " + response);
+        }
+    }
+    
+    /**
+     * Remove one or more members from a set asynchronously
+     * @param key the set key
+     * @param members the members to remove
+     * @return CompletableFuture that will complete with the result
+     */
+    public CompletableFuture<Long> sremAsync(String key, String... members) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return srem(key, members);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }, executor);
+    }
+    
+    /**
+     * Get all members in a set
+     * @param key the set key
+     * @return a set of all members
+     * @throws IOException if communication fails
+     */
+    public Set<String> smembers(String key) throws IOException {
+        out.println("SMEMBERS " + key);
+        Set<String> result = new HashSet<>();
+        
+        String response;
+        while ((response = in.readLine()) != null && !response.isEmpty()) {
+            if (response.equals("(empty set)")) {
+                break;
+            }
+            result.add(response);
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Get all members in a set asynchronously
+     * @param key the set key
+     * @return CompletableFuture that will complete with the result
+     */
+    public CompletableFuture<Set<String>> smembersAsync(String key) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return smembers(key);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }, executor);
+    }
+    
+    /**
+     * Determine if a given value is a member of a set
+     * @param key the set key
+     * @param member the member to check
+     * @return true if the member exists in the set, false otherwise
+     * @throws IOException if communication fails
+     */
+    public boolean sismember(String key, String member) throws IOException {
+        out.println("SISMEMBER " + key + " " + member);
+        String response = in.readLine();
+        return "1".equals(response);
+    }
+    
+    /**
+     * Determine if a given value is a member of a set asynchronously
+     * @param key the set key
+     * @param member the member to check
+     * @return CompletableFuture that will complete with the result
+     */
+    public CompletableFuture<Boolean> sismemberAsync(String key, String member) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return sismember(key, member);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }, executor);
+    }
+    
+    /**
+     * Get the number of members in a set
+     * @param key the set key
+     * @return the cardinality (number of elements) of the set
+     * @throws IOException if communication fails
+     */
+    public long scard(String key) throws IOException {
+        out.println("SCARD " + key);
+        String response = in.readLine();
+        try {
+            return Long.parseLong(response);
+        } catch (NumberFormatException e) {
+            throw new IOException("Invalid response from server: " + response);
+        }
+    }
+    
+    /**
+     * Get the number of members in a set asynchronously
+     * @param key the set key
+     * @return CompletableFuture that will complete with the result
+     */
+    public CompletableFuture<Long> scardAsync(String key) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return scard(key);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }, executor);
+    }
+    
+    /**
      * Set a timeout on a key
      * @param key the key
      * @param seconds the timeout in seconds
@@ -451,8 +625,14 @@ public class RedicraftClient {
         if (executor != null) {
             executor.shutdown();
         }
-        if (in != null) in.close();
-        if (out != null) out.close();
-        if (socket != null) socket.close();
+        if (in != null) {
+            in.close();
+        }
+        if (out != null) {
+            out.close();
+        }
+        if (socket != null) {
+            socket.close();
+        }
     }
 }

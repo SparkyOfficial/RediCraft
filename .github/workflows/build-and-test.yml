@@ -51,3 +51,7 @@ jobs:
     - name: Run Java Tests
       working-directory: ./RediCraft-API
       run: mvn test
+      
+    - name: Run Checkstyle
+      working-directory: ./RediCraft-API
+      run: mvn checkstyle:check

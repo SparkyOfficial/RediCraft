@@ -82,6 +82,30 @@ Command Parser::parse(const std::string& input) {
     } else if (command == "TTL" && tokens.size() >= 2) {
         cmd.type = CommandType::TTL;
         cmd.args.push_back(tokens[1]);  // key
+    } else if (command == "SADD" && tokens.size() >= 3) {
+        cmd.type = CommandType::SADD;
+        cmd.args.push_back(tokens[1]);  // set key
+        // Add all remaining tokens as members
+        for (size_t i = 2; i < tokens.size(); ++i) {
+            cmd.args.push_back(tokens[i]);
+        }
+    } else if (command == "SMEMBERS" && tokens.size() >= 2) {
+        cmd.type = CommandType::SMEMBERS;
+        cmd.args.push_back(tokens[1]);  // set key
+    } else if (command == "SREM" && tokens.size() >= 3) {
+        cmd.type = CommandType::SREM;
+        cmd.args.push_back(tokens[1]);  // set key
+        // Add all remaining tokens as members
+        for (size_t i = 2; i < tokens.size(); ++i) {
+            cmd.args.push_back(tokens[i]);
+        }
+    } else if (command == "SISMEMBER" && tokens.size() >= 3) {
+        cmd.type = CommandType::SISMEMBER;
+        cmd.args.push_back(tokens[1]);  // set key
+        cmd.args.push_back(tokens[2]);  // member
+    } else if (command == "SCARD" && tokens.size() >= 2) {
+        cmd.type = CommandType::SCARD;
+        cmd.args.push_back(tokens[1]);  // set key
     }
     
     return cmd;

@@ -24,6 +24,11 @@ enum class CommandType {
     LRANGE,
     EXPIRE,
     TTL,
+    SADD,
+    SMEMBERS,
+    SREM,
+    SISMEMBER,
+    SCARD,
     UNKNOWN
 };
 

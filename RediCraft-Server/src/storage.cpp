@@ -41,6 +41,14 @@ void Storage::remove_expired(const std::string& key) {
         is_expired(list_it->second.expiry)) {
         list_data_.erase(list_it);
     }
+    
+    // Check set data
+    auto set_it = set_data_.find(key);
+    if (set_it != set_data_.end() && 
+        set_it->second.has_expiry && 
+        is_expired(set_it->second.expiry)) {
+        set_data_.erase(set_it);
+    }
 }
 
 bool Storage::set(const std::string& key, const std::string& value) {
@@ -255,6 +263,84 @@ std::vector<std::string> Storage::lrange(const std::string& key, long long start
     return std::vector<std::string>();
 }
 
+// Set operations
+long long Storage::sadd(const std::string& key, const std::vector<std::string>& members) {
+    std::unique_lock lock(mutex_);
+    remove_expired(key);
+    
+    long long added = 0;
+    auto it = set_data_.find(key);
+    if (it != set_data_.end()) {
+        // Set exists, add members
+        for (const auto& member : members) {
+            if (it->second.members.insert(member).second) {
+                added++;
+            }
+        }
+    } else {
+        // Create new set
+        SetItem item;
+        for (const auto& member : members) {
+            item.members.insert(member);
+        }
+        set_data_[key] = item;
+        added = members.size();
+    }
+    
+    return added;
+}
+
+long long Storage::srem(const std::string& key, const std::vector<std::string>& members) {
+    std::unique_lock lock(mutex_);
+    remove_expired(key);
+    
+    long long removed = 0;
+    auto it = set_data_.find(key);
+    if (it != set_data_.end()) {
+        // Set exists, remove members
+        for (const auto& member : members) {
+            if (it->second.members.erase(member)) {
+                removed++;
+            }
+        }
+    }
+    
+    return removed;
+}
+
+bool Storage::sismember(const std::string& key, const std::string& member) {
+    std::shared_lock lock(mutex_);
+    remove_expired(key);
+    
+    auto it = set_data_.find(key);
+    if (it != set_data_.end()) {
+        return it->second.members.find(member) != it->second.members.end();
+    }
+    return false;
+}
+
+std::unordered_set<std::string> Storage::smembers(const std::string& key) {
+    std::shared_lock lock(mutex_);
+    remove_expired(key);
+    
+    auto it = set_data_.find(key);
+    if (it != set_data_.end()) {
+        return it->second.members;
+    }
+    return std::unordered_set<std::string>();
+}
+
+long long Storage::scard(const std::string& key) {
+    std::shared_lock lock(mutex_);
+    remove_expired(key);
+    
+    auto it = set_data_.find(key);
+    if (it != set_data_.end()) {
+        return static_cast<long long>(it->second.members.size());
+    }
+    return 0;
+}
+
 bool Storage::expire(const std::string& key, long long seconds) {
     std::unique_lock lock(mutex_);
     remove_expired(key);
@@ -281,6 +367,14 @@ bool Storage::expire(const std::string& key, long long seconds) {
         list_it->second.has_expiry = true;
         list_it->second.expiry = std::chrono::steady_clock::now() + 
                                 std::chrono::seconds(seconds);
+        return true;
+    }
+    
+    auto set_it = set_data_.find(key);
+    if (set_it != set_data_.end()) {
+        set_it->second.has_expiry = true;
+        set_it->second.expiry = std::chrono::steady_clock::now() + 
+                               std::chrono::seconds(seconds);
         return true;
     }
     
@@ -325,6 +419,17 @@ long long Storage::ttl(const std::string& key) {
         return -1; // Key exists but expired
     }
     
+    auto set_it = set_data_.find(key);
+    if (set_it != set_data_.end() && set_it->second.has_expiry) {
+        auto now = std::chrono::steady_clock::now();
+        if (set_it->second.expiry > now) {
+            auto remaining = std::chrono::duration_cast<std::chrono::seconds>(
+                set_it->second.expiry - now);
+            return remaining.count();
+        }
+        return -1; // Key exists but expired
+    }
+    
     // Key doesn't exist or has no expiry
     auto string_check = string_data_.find(key);
     if (string_check != string_data_.end()) return -1; // Key exists but no expiry
@@ -334,6 +439,9 @@ long long Storage::ttl(const std::string& key) {
     
     auto list_check = list_data_.find(key);
     if (list_check != list_data_.end()) return -1; // Key exists but no expiry
+    
+    auto set_check = set_data_.find(key);
+    if (set_check != set_data_.end()) return -1; // Key exists but no expiry
     
     return -2; // Key doesn't exist
 }
@@ -349,4 +457,8 @@ const std::unordered_map<std::string, Storage::HashItem>& Storage::getHashData()
 
 const std::unordered_map<std::string, Storage::ListItem>& Storage::getListData() const {
     return list_data_;
+}
+
+const std::unordered_map<std::string, Storage::SetItem>& Storage::getSetData() const {
+    return set_data_;
 }

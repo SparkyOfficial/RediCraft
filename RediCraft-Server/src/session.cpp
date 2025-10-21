@@ -194,6 +194,61 @@ void Session::handle_command(const std::string& commandStr) {
             }
             break;
             
+        case CommandType::SADD:
+            if (cmd.args.size() >= 2) {
+                std::vector<std::string> members(cmd.args.begin() + 1, cmd.args.end());
+                long long added = storage_.sadd(cmd.args[0], members);
+                response_ = std::to_string(added) + "\r\n";
+            } else {
+                response_ = "ERROR: SADD requires set key and at least one member\r\n";
+            }
+            break;
+            
+        case CommandType::SMEMBERS:
+            if (cmd.args.size() >= 1) {
+                auto members = storage_.smembers(cmd.args[0]);
+                if (members.empty()) {
+                    response_ = "(empty set)\r\n";
+                } else {
+                    std::ostringstream oss;
+                    for (const auto& member : members) {
+                        oss << member << "\r\n";
+                    }
+                    response_ = oss.str();
+                }
+            } else {
+                response_ = "ERROR: SMEMBERS requires set key\r\n";
+            }
+            break;
+            
+        case CommandType::SREM:
+            if (cmd.args.size() >= 2) {
+                std::vector<std::string> members(cmd.args.begin() + 1, cmd.args.end());
+                long long removed = storage_.srem(cmd.args[0], members);
+                response_ = std::to_string(removed) + "\r\n";
+            } else {
+                response_ = "ERROR: SREM requires set key and at least one member\r\n";
+            }
+            break;
+            
+        case CommandType::SISMEMBER:
+            if (cmd.args.size() >= 2) {
+                bool isMember = storage_.sismember(cmd.args[0], cmd.args[1]);
+                response_ = std::string(isMember ? "1" : "0") + "\r\n";
+            } else {
+                response_ = "ERROR: SISMEMBER requires set key and member\r\n";
+            }
+            break;
+            
+        case CommandType::SCARD:
+            if (cmd.args.size() >= 1) {
+                long long count = storage_.scard(cmd.args[0]);
+                response_ = std::to_string(count) + "\r\n";
+            } else {
+                response_ = "ERROR: SCARD requires set key\r\n";
+            }
+            break;
+            
         case CommandType::EXPIRE:
             if (cmd.args.size() >= 2) {
                 try {

@@ -161,7 +161,7 @@ Removes and returns the last element of a list stored at key.
 **Returns:** The value of the popped element, or `null` if list is empty
 
 #### lrange
-```java
+``java
 public List<String> lrange(String key, long start, long end)
 ```
 Gets a range of elements from a list stored at key.
@@ -374,6 +374,48 @@ Returns the specified elements of the list stored at key.
 
 **Return:** List of elements in the specified range.
 
+### Set Commands
+
+#### SADD
+```
+SADD key member [member ...]
+```
+Add the specified members to the set stored at key. Specified members that are already a member of this set are ignored. If key does not exist, a new set is created before adding the specified members.
+
+**Return:** The number of elements that were added to the set, not including all the elements already present in the set.
+
+#### SMEMBERS
+```
+SMEMBERS key
+```
+Returns all the members of the set value stored at key.
+
+**Return:** All members of the set.
+
+#### SREM
+```
+SREM key member [member ...]
+```
+Remove the specified members from the set stored at key. Specified members that are not a member of this set are ignored. If key does not exist, it is treated as an empty set and this command returns 0.
+
+**Return:** The number of members that were removed from the set, not including non existing members.
+
+#### SISMEMBER
+```
+SISMEMBER key member
+```
+Returns if member is a member of the set stored at key.
+
+**Return:** 1 if the element is a member of the set, 0 if the element is not a member of the set, or if key does not exist.
+
+#### SCARD
+```
+SCARD key
+```
+Returns the set cardinality (number of elements) of the set stored at key.
+
+**Return:** The cardinality (number of elements) of the set, or 0 if key does not exist.
+
 ### Expiration Commands
 
 #### EXPIRE
@@ -408,7 +450,7 @@ Thrown when there are command execution errors.
 ### Best Practices
 
 1. **Always close connections** when done:
-```java
+```
 RedicraftClient client = new RedicraftClient();
 try {
     client.connect("localhost", 7379);
@@ -419,7 +461,7 @@ try {
 ```
 
 2. **Use connection pooling** for high-concurrency scenarios:
-```java
+```
 ConnectionPool pool = new ConnectionPool("localhost", 7379, 10);
 try {
     RedicraftClient client = pool.getConnection();
