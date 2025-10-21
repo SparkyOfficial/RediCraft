@@ -1,6 +1,6 @@
 # RediCraft - Distributed Key-Value Store for Minecraft Plugins
 
-[![Build Status](https://github.com/your-username/RediCraft/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/your-username/RediCraft/actions)
+[![Build Status](https://github.com/SparkyOfficial/RediCraft/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/SparkyOfficial/RediCraft/actions)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 RediCraft is a high-performance, distributed in-memory key-value store specifically designed for Minecraft plugin development. It provides Redis-like functionality with additional features tailored for game server applications.
@@ -70,4 +70,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-If you encounter any issues or have questions, please [open an issue](https://github.com/your-username/RediCraft/issues/new) on GitHub.
+If you encounter any issues or have questions, please [open an issue](https://github.com/SparkyOfficial/RediCraft/issues/new) on GitHub.
