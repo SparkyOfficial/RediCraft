@@ -1,0 +1,73 @@
+# Build directories
+build/
+bin/
+obj/
+target/
+
+# IDE files
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+
+# OS generated files
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# CMake files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+CMakeScripts/
+Testing/
+CTestTestfile.cmake
+
+# Visual Studio files
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
+*.sdf
+*.opensdf
+*.ilk
+*.pdb
+*.idb
+*.ipch/
+*.aps
+*.pch
+*.exp
+*.lib
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Java/Maven files
+*.jar
+*.war
+*.ear
+*.class
+*.hprof
+hs_err_pid*
+
+# RediCraft specific
+*.rdb
+redicraft.conf
+
+# GitHub Actions
+.github/workflows/*.log
+
+# Demo files
+demo.ps1
+demo.bat

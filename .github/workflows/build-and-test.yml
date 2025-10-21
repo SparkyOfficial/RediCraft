@@ -1,0 +1,53 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-cpp:
+    name: Build C++ Server
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential
+    
+    - name: Build C++ Server
+      working-directory: ./RediCraft-Server
+      run: |
+        cmake -B build
+        cmake --build build
+    
+    - name: Run C++ Tests
+      working-directory: ./RediCraft-Server
+      run: |
+        # If we had tests, we would run them here
+        echo "No C++ tests to run"
+
+  build-java:
+    name: Build Java Client
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up JDK 11
+      uses: actions/setup-java@v3
+      with:
+        java-version: '11'
+        distribution: 'temurin'
+    
+    - name: Build with Maven
+      working-directory: ./RediCraft-API
+      run: mvn clean package
+    
+    - name: Run Java Tests
+      working-directory: ./RediCraft-API
+      run: mvn test
