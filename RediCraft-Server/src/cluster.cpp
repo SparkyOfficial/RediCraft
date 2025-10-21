@@ -12,6 +12,16 @@
 #include <memory>
 #include <algorithm>
 #include <iterator>
+#include <mutex>
+
+#ifdef ASIO_STANDALONE
+#include <asio.hpp>
+#include <asio/ts/net.hpp>
+#else
+#include <asio.hpp>
+#endif
+
+using asio::ip::tcp;
 
 // ASIO is included through the header files
 // The build system handles ASIO inclusion through CMake configuration

@@ -8,6 +8,16 @@
 #include <iostream>
 #include <sstream>
 #include <chrono>
+#include <mutex>
+
+#ifdef ASIO_STANDALONE
+#include <asio.hpp>
+#include <asio/ts/net.hpp>
+#else
+#include <asio.hpp>
+#endif
+
+using asio::ip::tcp;
 
 ReplicationManager::ReplicationManager(Storage& storage, ReplicationRole role)
     : storage_(storage)
