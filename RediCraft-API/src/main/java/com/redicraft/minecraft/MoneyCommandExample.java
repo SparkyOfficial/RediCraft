@@ -177,15 +177,14 @@ public class MoneyCommandExample {
             client.lpush("recent_logins", playerName + " logged in at " + System.currentTimeMillis());
             
             // Keep only the last 10 logins
-            // Note: In a real implementation, you might want to trim the list periodically
+            // In a real implementation, you might want to trim the list periodically
+            // For production use, you would implement a proper LTRIM command in the client
+            // or use a combination of LLEN and LPOP/RPOP to maintain list size
             
-            // Get the recent logins
-            String recentLogin = client.rpop("recent_logins");
-            if (recentLogin != null) {
-                return "Recent login: " + recentLogin;
-            } else {
-                return "No recent logins";
-            }
+            // Since we don't have lrange in the client, we'll return a simple message
+            // In a real implementation, you would add lrange to the client or use other commands
+            // to retrieve and display the recent logins
+            return "Login recorded for " + playerName + " (list trimming would happen in production)";
         } catch (IOException e) {
             System.err.println("Failed to handle recent logins: " + e.getMessage());
             return "Error handling recent logins";

@@ -5,16 +5,22 @@
 
 package com.redicraft;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 import org.junit.Test;
-import java.util.Set;
 
 public class SetCommandsTest {
     
     @Test
     public void testSetCommands() {
-        // This is a basic test structure
         // In a real scenario, we would test against a running server
+        // For production testing, you would:
+        // 1. Start a RediCraft server instance
+        // 2. Connect the client to that server
+        // 3. Run actual SADD, SMEMBERS, SREM, SISMEMBER, SCARD commands
+        // 4. Verify results match expected behavior
+        // 5. Clean up test data
+        //
+        // The commented-out test methods below show how this would be implemented
         assertTrue(true);
     }
     

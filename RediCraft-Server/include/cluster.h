@@ -14,6 +14,7 @@
 #include <atomic>
 #include <memory>
 #include <unordered_map>
+#include <shared_mutex>
 
 #ifdef ASIO_STANDALONE
 using asio::ip::tcp;
@@ -72,7 +73,7 @@ private:
     
     // Cluster nodes
     std::vector<ClusterNode> nodes_;
-    std::mutex nodes_mutex_;
+    mutable std::shared_mutex nodes_mutex_;
     
     // Cluster server
     std::unique_ptr<asio::io_context> cluster_io_context_;
