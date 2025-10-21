@@ -7,73 +7,82 @@ package com.redicraft;
 
 import java.io.IOException;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Simple test to verify set commands work correctly
  */
 public class TestSetCommands {
+    private static final Logger LOGGER = Logger.getLogger(TestSetCommands.class.getName());
+    private static final String FRUITS_KEY = "fruits";
+    private static final String APPLE = "apple";
+    private static final String BANANA = "banana";
+    private static final String ORANGE = "orange";
+    private static final String GRAPE = "grape";
+    private static final String KIWI = "kiwi";
+    private static final String MANGO = "mango";
     
     public static void main(String[] args) {
         RedicraftClient client = new RedicraftClient();
         
         try {
             // Connect to the server
-            System.out.println("Connecting to RediCraft server...");
+            LOGGER.info("Connecting to RediCraft server...");
             client.connect("localhost", 7379);
-            System.out.println("Connected successfully!");
+            LOGGER.info("Connected successfully!");
             
             // Test SADD command
-            System.out.println("\nTesting SADD command...");
-            long added = client.sadd("fruits", "apple", "banana", "orange");
-            System.out.println("Added " + added + " fruits to the set");
+            LOGGER.info("\nTesting SADD command...");
+            long added = client.sadd(FRUITS_KEY, APPLE, BANANA, ORANGE);
+            LOGGER.info("Added " + added + " fruits to the set");
             
             // Add more fruits (some duplicates)
-            long added2 = client.sadd("fruits", "apple", "grape", "kiwi");
-            System.out.println("Added " + added2 + " more fruits (apple was duplicate)");
+            long added2 = client.sadd(FRUITS_KEY, APPLE, GRAPE, KIWI);
+            LOGGER.info("Added " + added2 + " more fruits (apple was duplicate)");
             
             // Test SCARD command
-            System.out.println("\nTesting SCARD command...");
-            long count = client.scard("fruits");
-            System.out.println("Number of fruits in set: " + count);
+            LOGGER.info("\nTesting SCARD command...");
+            long count = client.scard(FRUITS_KEY);
+            LOGGER.info("Number of fruits in set: " + count);
             
             // Test SMEMBERS command
-            System.out.println("\nTesting SMEMBERS command...");
-            Set<String> fruits = client.smembers("fruits");
-            System.out.println("Fruits in set:");
+            LOGGER.info("\nTesting SMEMBERS command...");
+            Set<String> fruits = client.smembers(FRUITS_KEY);
+            LOGGER.info("Fruits in set:");
             for (String fruit : fruits) {
-                System.out.println("  - " + fruit);
+                LOGGER.info("  - " + fruit);
             }
             
             // Test SISMEMBER command
-            System.out.println("\nTesting SISMEMBER command...");
-            boolean hasApple = client.sismember("fruits", "apple");
-            boolean hasMango = client.sismember("fruits", "mango");
-            System.out.println("Is 'apple' in fruits? " + (hasApple ? "Yes" : "No"));
-            System.out.println("Is 'mango' in fruits? " + (hasMango ? "Yes" : "No"));
+            LOGGER.info("\nTesting SISMEMBER command...");
+            boolean hasApple = client.sismember(FRUITS_KEY, APPLE);
+            boolean hasMango = client.sismember(FRUITS_KEY, MANGO);
+            LOGGER.info("Is 'apple' in fruits? " + (hasApple ? "Yes" : "No"));
+            LOGGER.info("Is 'mango' in fruits? " + (hasMango ? "Yes" : "No"));
             
             // Test SREM command
-            System.out.println("\nTesting SREM command...");
-            long removed = client.srem("fruits", "banana", "mango");
-            System.out.println("Removed " + removed + " fruits (mango wasn't in set)");
+            LOGGER.info("\nTesting SREM command...");
+            long removed = client.srem(FRUITS_KEY, BANANA, MANGO);
+            LOGGER.info("Removed " + removed + " fruits (mango wasn't in set)");
             
             // Check members after removal
-            System.out.println("\nFruits after removal:");
-            Set<String> remainingFruits = client.smembers("fruits");
+            LOGGER.info("\nFruits after removal:");
+            Set<String> remainingFruits = client.smembers(FRUITS_KEY);
             for (String fruit : remainingFruits) {
-                System.out.println("  - " + fruit);
+                LOGGER.info("  - " + fruit);
             }
             
             // Check final count
-            long finalCount = client.scard("fruits");
-            System.out.println("\nFinal count of fruits: " + finalCount);
+            long finalCount = client.scard(FRUITS_KEY);
+            LOGGER.info("\nFinal count of fruits: " + finalCount);
             
             // Close connection
             client.close();
-            System.out.println("\nConnection closed.");
+            LOGGER.info("\nConnection closed.");
             
         } catch (IOException e) {
-            System.err.println("Error: " + e.getMessage());
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Error: " + e.getMessage(), e);
         }
     }
 }

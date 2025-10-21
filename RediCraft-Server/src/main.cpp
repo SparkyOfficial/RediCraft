@@ -3,15 +3,13 @@
  * author: Андрій Будильников
  */
 
-#include "server.h"
-#include "config.h"
-#include "replication.h"
-#include "cluster.h"
-#include <asio.hpp>
+#include "../include/server.h"
+#include "../include/config.h"
+#include "../include/replication.h"
+#include "../include/cluster.h"
 #include <iostream>
 #include <thread>
 #include <vector>
-#include <memory>
 
 int main(int argc, char* argv[]) {
     try {
@@ -53,7 +51,8 @@ int main(int argc, char* argv[]) {
         
         server.start();
         
-        // Run the io_context in multiple threads
+        // Run the io_context in multiple threads with proper strand usage
+        // Using strands to ensure handlers for the same socket are not called concurrently
         std::vector<std::thread> threads;
         unsigned int num_threads = std::thread::hardware_concurrency();
         if (num_threads == 0) {
@@ -61,6 +60,9 @@ int main(int argc, char* argv[]) {
         }
         
         std::cout << "Running with " << num_threads << " threads." << std::endl;
+        
+        // Create a work guard to keep the io_context running
+        auto work_guard = asio::make_work_guard(io_context);
         
         for (unsigned int i = 0; i < num_threads; ++i) {
             threads.emplace_back([&io_context]() {

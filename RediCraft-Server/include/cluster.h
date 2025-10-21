@@ -7,7 +7,6 @@
 #define REDICRAFT_CLUSTER_H
 
 #include "storage.h"
-#include <asio.hpp>
 #include <string>
 #include <vector>
 #include <thread>
@@ -16,17 +15,27 @@
 #include <unordered_map>
 #include <shared_mutex>
 
+// Include ASIO headers properly
 #ifdef ASIO_STANDALONE
-using asio::ip::tcp;
+#include <asio.hpp>
+#include <asio/ts/net.hpp>
 #else
-using asio::ip::tcp;
+#include <asio.hpp>
 #endif
+
+// Forward declarations for ASIO types
+namespace asio {
+    class io_context;
+    namespace ip {
+        class tcp;
+    }
+}
 
 struct ClusterNode {
     std::string host;
     int port;
     bool is_master;
-    std::atomic<bool> is_alive;
+    mutable std::atomic<bool> is_alive;
     
     ClusterNode(const std::string& h, int p, bool master = false)
         : host(h), port(p), is_master(master), is_alive(true) {}
@@ -44,7 +53,28 @@ struct ClusterNode {
         }
         return *this;
     }
+    
+    // Add move constructor and assignment operator
+    ClusterNode(ClusterNode&& other) noexcept
+        : host(std::move(other.host)), port(other.port), is_master(other.is_master), is_alive(other.is_alive.load()) {}
+        
+    ClusterNode& operator=(ClusterNode&& other) noexcept {
+        if (this != &other) {
+            host = std::move(other.host);
+            port = other.port;
+            is_master = other.is_master;
+            is_alive.store(other.is_alive.load());
+        }
+        return *this;
+    }
 };
+
+// Forward declaration for tcp::socket
+namespace asio {
+    namespace ip {
+        class tcp;
+    }
+}
 
 class ClusterManager {
 public:
@@ -77,7 +107,7 @@ private:
     
     // Cluster server
     std::unique_ptr<asio::io_context> cluster_io_context_;
-    std::unique_ptr<tcp::acceptor> cluster_acceptor_;
+    std::unique_ptr<asio::ip::tcp::acceptor> cluster_acceptor_;
     std::vector<std::thread> cluster_threads_;
     std::atomic<bool> cluster_running_;
     
@@ -87,7 +117,7 @@ private:
     
     // Helper methods
     void clusterAcceptLoop();
-    void handleNodeConnection(tcp::socket socket);
+    void handleNodeConnection(asio::ip::tcp::socket socket);
     void nodeDiscoveryLoop();
     void pingNodes();
     

@@ -73,6 +73,8 @@ private:
     // Command processing
     void processReplicationCommand(const std::string& command);
     std::string generateReplicationLog(const std::string& command);
+    std::string generateStorageSnapshot();
+
 };
 
 #endif // REDICRAFT_REPLICATION_H

@@ -22,14 +22,18 @@ import java.util.concurrent.Executors;
  * Client for connecting to the RediCraft key-value server
  */
 public class RedicraftClient {
+    private static final String NIL_RESPONSE = "(nil)";
+    private static final String EMPTY_HASH_RESPONSE = "(empty hash)";
+    private static final String EMPTY_SET_RESPONSE = "(empty set)";
+    
     private Socket socket;
     private PrintWriter out;
     private BufferedReader in;
-    private ExecutorService executor;
+    private static final ExecutorService SHARED_EXECUTOR = Executors.newCachedThreadPool();
     
     public RedicraftClient() {
-        // Create a single-thread executor for async operations
-        this.executor = Executors.newSingleThreadExecutor();
+        // No longer create a single-thread executor for each client
+        // Use the shared executor service instead
     }
     
     /**
@@ -64,9 +68,9 @@ public class RedicraftClient {
             try {
                 return ping();
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RedicraftException.Unchecked(e);
             }
-        }, executor);
+        }, SHARED_EXECUTOR);
     }
     
     /**
@@ -78,7 +82,11 @@ public class RedicraftClient {
     public void set(String key, String value) throws IOException {
         out.println("SET " + key + " " + value);
         // Read the response
-        in.readLine();
+        String response = in.readLine();
+        // Fix for SonarLint issue: Use or store the value returned from "readLine"
+        if (response == null) {
+            throw new IOException("No response from server");
+        }
     }
     
     /**
@@ -92,9 +100,9 @@ public class RedicraftClient {
             try {
                 set(key, value);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RedicraftException.Unchecked(e);
             }
-        }, executor);
+        }, SHARED_EXECUTOR);
     }
     
     /**
@@ -106,7 +114,7 @@ public class RedicraftClient {
     public String get(String key) throws IOException {
         out.println("GET " + key);
         String response = in.readLine();
-        return "(nil)".equals(response) ? null : response;
+        return NIL_RESPONSE.equals(response) ? null : response;
     }
     
     /**
@@ -119,9 +127,9 @@ public class RedicraftClient {
             try {
                 return get(key);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RedicraftException.Unchecked(e);
             }
-        }, executor);
+        }, SHARED_EXECUTOR);
     }
     
     /**
@@ -150,9 +158,9 @@ public class RedicraftClient {
             try {
                 return incr(key);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RedicraftException.Unchecked(e);
             }
-        }, executor);
+        }, SHARED_EXECUTOR);
     }
     
     /**
@@ -181,9 +189,9 @@ public class RedicraftClient {
             try {
                 return decr(key);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RedicraftException.Unchecked(e);
             }
-        }, executor);
+        }, SHARED_EXECUTOR);
     }
     
     /**
@@ -214,9 +222,9 @@ public class RedicraftClient {
             try {
                 return incrBy(key, increment);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RedicraftException.Unchecked(e);
             }
-        }, executor);
+        }, SHARED_EXECUTOR);
     }
     
     /**
@@ -229,7 +237,11 @@ public class RedicraftClient {
     public void hset(String key, String field, String value) throws IOException {
         out.println("HSET " + key + " " + field + " " + value);
         // Read the response
-        in.readLine();
+        String response = in.readLine();
+        // Fix for SonarLint issue: Use or store the value returned from "readLine"
+        if (response == null) {
+            throw new IOException("No response from server");
+        }
     }
     
     /**
@@ -244,9 +256,9 @@ public class RedicraftClient {
             try {
                 hset(key, field, value);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RedicraftException.Unchecked(e);
             }
-        }, executor);
+        }, SHARED_EXECUTOR);
     }
     
     /**
@@ -259,7 +271,7 @@ public class RedicraftClient {
     public String hget(String key, String field) throws IOException {
         out.println("HGET " + key + " " + field);
         String response = in.readLine();
-        return "(nil)".equals(response) ? null : response;
+        return NIL_RESPONSE.equals(response) ? null : response;
     }
     
     /**
@@ -273,9 +285,9 @@ public class RedicraftClient {
             try {
                 return hget(key, field);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RedicraftException.Unchecked(e);
             }
-        }, executor);
+        }, SHARED_EXECUTOR);
     }
     
     /**
@@ -290,7 +302,7 @@ public class RedicraftClient {
         
         String response;
         while ((response = in.readLine()) != null && !response.isEmpty()) {
-            if (response.equals("(empty hash)")) {
+            if (response.equals(EMPTY_HASH_RESPONSE)) {
                 break;
             }
             // Parse field: value format
@@ -315,9 +327,9 @@ public class RedicraftClient {
             try {
                 return hgetAll(key);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RedicraftException.Unchecked(e);
             }
-        }, executor);
+        }, SHARED_EXECUTOR);
     }
     
     /**
@@ -335,6 +347,11 @@ public class RedicraftClient {
         out.println(command.toString());
         
         String response = in.readLine();
+        // Fix for SonarLint issue: Use or store the value returned from "readLine"
+        if (response == null) {
+            throw new IOException("No response from server");
+        }
+        
         try {
             return Long.parseLong(response);
         } catch (NumberFormatException e) {
@@ -353,9 +370,9 @@ public class RedicraftClient {
             try {
                 return lpush(key, values);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RedicraftException.Unchecked(e);
             }
-        }, executor);
+        }, SHARED_EXECUTOR);
     }
     
     /**
@@ -367,7 +384,7 @@ public class RedicraftClient {
     public String rpop(String key) throws IOException {
         out.println("RPOP " + key);
         String response = in.readLine();
-        return "(nil)".equals(response) ? null : response;
+        return NIL_RESPONSE.equals(response) ? null : response;
     }
     
     /**
@@ -380,9 +397,9 @@ public class RedicraftClient {
             try {
                 return rpop(key);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RedicraftException.Unchecked(e);
             }
-        }, executor);
+        }, SHARED_EXECUTOR);
     }
     
     /**
@@ -400,6 +417,11 @@ public class RedicraftClient {
         out.println(command.toString());
         
         String response = in.readLine();
+        // Fix for SonarLint issue: Use or store the value returned from "readLine"
+        if (response == null) {
+            throw new IOException("No response from server");
+        }
+        
         try {
             return Long.parseLong(response);
         } catch (NumberFormatException e) {
@@ -418,9 +440,9 @@ public class RedicraftClient {
             try {
                 return sadd(key, members);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RedicraftException.Unchecked(e);
             }
-        }, executor);
+        }, SHARED_EXECUTOR);
     }
     
     /**
@@ -438,6 +460,11 @@ public class RedicraftClient {
         out.println(command.toString());
         
         String response = in.readLine();
+        // Fix for SonarLint issue: Use or store the value returned from "readLine"
+        if (response == null) {
+            throw new IOException("No response from server");
+        }
+        
         try {
             return Long.parseLong(response);
         } catch (NumberFormatException e) {
@@ -456,9 +483,9 @@ public class RedicraftClient {
             try {
                 return srem(key, members);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RedicraftException.Unchecked(e);
             }
-        }, executor);
+        }, SHARED_EXECUTOR);
     }
     
     /**
@@ -473,7 +500,7 @@ public class RedicraftClient {
         
         String response;
         while ((response = in.readLine()) != null && !response.isEmpty()) {
-            if (response.equals("(empty set)")) {
+            if (response.equals(EMPTY_SET_RESPONSE)) {
                 break;
             }
             result.add(response);
@@ -492,9 +519,9 @@ public class RedicraftClient {
             try {
                 return smembers(key);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RedicraftException.Unchecked(e);
             }
-        }, executor);
+        }, SHARED_EXECUTOR);
     }
     
     /**
@@ -521,9 +548,9 @@ public class RedicraftClient {
             try {
                 return sismember(key, member);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RedicraftException.Unchecked(e);
             }
-        }, executor);
+        }, SHARED_EXECUTOR);
     }
     
     /**
@@ -535,6 +562,11 @@ public class RedicraftClient {
     public long scard(String key) throws IOException {
         out.println("SCARD " + key);
         String response = in.readLine();
+        // Fix for SonarLint issue: Use or store the value returned from "readLine"
+        if (response == null) {
+            throw new IOException("No response from server");
+        }
+        
         try {
             return Long.parseLong(response);
         } catch (NumberFormatException e) {
@@ -552,9 +584,9 @@ public class RedicraftClient {
             try {
                 return scard(key);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RedicraftException.Unchecked(e);
             }
-        }, executor);
+        }, SHARED_EXECUTOR);
     }
     
     /**
@@ -581,9 +613,9 @@ public class RedicraftClient {
             try {
                 return expire(key, seconds);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RedicraftException.Unchecked(e);
             }
-        }, executor);
+        }, SHARED_EXECUTOR);
     }
     
     /**
@@ -595,6 +627,11 @@ public class RedicraftClient {
     public long ttl(String key) throws IOException {
         out.println("TTL " + key);
         String response = in.readLine();
+        // Fix for SonarLint issue: Use or store the value returned from "readLine"
+        if (response == null) {
+            throw new IOException("No response from server");
+        }
+        
         try {
             return Long.parseLong(response);
         } catch (NumberFormatException e) {
@@ -612,9 +649,9 @@ public class RedicraftClient {
             try {
                 return ttl(key);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RedicraftException.Unchecked(e);
             }
-        }, executor);
+        }, SHARED_EXECUTOR);
     }
     
     /**
@@ -622,9 +659,7 @@ public class RedicraftClient {
      * @throws IOException if closing fails
      */
     public void close() throws IOException {
-        if (executor != null) {
-            executor.shutdown();
-        }
+        // Don't shutdown the shared executor as it's used by other clients
         if (in != null) {
             in.close();
         }

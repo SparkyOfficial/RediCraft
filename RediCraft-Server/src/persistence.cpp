@@ -8,14 +8,49 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
+#include <functional>
+#include <thread>
+#include <future>
 
 PersistenceManager::PersistenceManager(Storage& storage)
     : storage_(storage)
-    , auto_persistence_running_(false) {
+    , auto_persistence_running_(false)
+    , workers_running_(false) {
+    initializeWorkers();
 }
 
 PersistenceManager::~PersistenceManager() {
     stopAutoPersistence();
+    shutdownWorkers();
+}
+
+void PersistenceManager::initializeWorkers() {
+    workers_running_ = true;
+    // Create a small thread pool for async operations
+    unsigned int num_threads = std::thread::hardware_concurrency();
+    if (num_threads == 0) num_threads = 2;
+    
+    for (unsigned int i = 0; i < num_threads; ++i) {
+        worker_threads_.emplace_back([this]() {
+            while (workers_running_) {
+                // Worker threads can be used for async operations
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+        });
+    }
+}
+
+void PersistenceManager::shutdownWorkers() {
+    workers_running_ = false;
+    for (auto& thread : worker_threads_) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+    worker_threads_.clear();
 }
 
 bool PersistenceManager::loadFromFile(const std::string& filename) {
@@ -62,17 +97,32 @@ bool PersistenceManager::loadFromFile(const std::string& filename) {
     return true;
 }
 
+// Create a snapshot of the current data without holding locks during file I/O
+std::tuple<
+    std::unordered_map<std::string, Storage::DataItem>,
+    std::unordered_map<std::string, Storage::HashItem>,
+    std::unordered_map<std::string, Storage::ListItem>,
+    std::unordered_map<std::string, Storage::SetItem>
+> PersistenceManager::createSnapshot() {
+    // Create copies of all data structures
+    auto stringData = storage_.getStringData();
+    auto hashData = storage_.getHashData();
+    auto listData = storage_.getListData();
+    auto setData = storage_.getSetData();
+    
+    return std::make_tuple(std::move(stringData), std::move(hashData), std::move(listData), std::move(setData));
+}
+
 bool PersistenceManager::saveToFile(const std::string& filename) {
+    // Create a snapshot of the current data
+    // This avoids holding locks during the file I/O operation
+    auto [stringData, hashData, listData, setData] = createSnapshot();
+    
     std::ofstream file(filename, std::ios::binary);
     if (!file.is_open()) {
         std::cerr << "Could not open file for writing: " << filename << std::endl;
         return false;
     }
-    
-    // Get data from storage
-    const auto& stringData = storage_.getStringData();
-    const auto& hashData = storage_.getHashData();
-    const auto& listData = storage_.getListData();
     
     // Write string data
     file << "[STRINGS]\n";
@@ -103,7 +153,35 @@ bool PersistenceManager::saveToFile(const std::string& filename) {
         }
     }
     
+    file << "[SETS]\n";
+    for (const auto& pair : setData) {
+        // Only save non-expired items
+        if (!pair.second.has_expiry || pair.second.expiry > std::chrono::steady_clock::now()) {
+            for (const auto& member : pair.second.members) {
+                file << pair.first << "." << member.first << "=1\n";
+            }
+        }
+    }
+    
     return true;
+}
+
+std::future<bool> PersistenceManager::saveToFileAsync(const std::string& filename) {
+    // Create a promise and future for the async operation
+    auto promise = std::make_shared<std::promise<bool>>();
+    auto future = promise->get_future();
+    
+    // Launch the operation in a separate thread
+    std::thread([this, filename, promise]() {
+        try {
+            bool result = saveToFile(filename);
+            promise->set_value(result);
+        } catch (...) {
+            promise->set_exception(std::current_exception());
+        }
+    }).detach();
+    
+    return future;
 }
 
 void PersistenceManager::startAutoPersistence(const std::string& filename, int interval_seconds) {
@@ -126,8 +204,15 @@ void PersistenceManager::stopAutoPersistence() {
 
 void PersistenceManager::autoPersistenceLoop(const std::string& filename, int interval_seconds) {
     while (auto_persistence_running_) {
-        // Save data
-        saveToFile(filename);
+        // Save data asynchronously to avoid blocking
+        auto future = saveToFileAsync(filename);
+        
+        // Wait for completion or timeout
+        try {
+            future.wait_for(std::chrono::seconds(30)); // 30 second timeout
+        } catch (const std::exception& e) {
+            std::cerr << "Error during auto persistence: " << e.what() << std::endl;
+        }
         
         // Sleep for the specified interval
         for (int i = 0; i < interval_seconds && auto_persistence_running_; ++i) {

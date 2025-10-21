@@ -3,7 +3,7 @@
  * author: Андрій Будильников
  */
 
-#include "parser.h"
+#include "../include/parser.h"
 #include <sstream>
 #include <algorithm>
 #include <cctype>
@@ -27,7 +27,8 @@ Command Parser::parse(const std::string& input) {
     
     // Convert first token to uppercase for comparison
     std::string command = tokens[0];
-    std::transform(command.begin(), command.end(), command.begin(), ::toupper);
+    std::transform(command.begin(), command.end(), command.begin(), 
+                   [](unsigned char c){ return std::toupper(c); });
     
     if (command == "PING") {
         cmd.type = CommandType::PING;

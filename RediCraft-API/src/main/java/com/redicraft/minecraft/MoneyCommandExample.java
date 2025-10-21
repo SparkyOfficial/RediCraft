@@ -7,6 +7,8 @@ package com.redicraft.minecraft;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import com.redicraft.RedicraftClient;
 
@@ -16,6 +18,11 @@ import com.redicraft.RedicraftClient;
  * the appropriate plugin class and implement the Bukkit/Spigot API
  */
 public class MoneyCommandExample {
+    private static final Logger LOGGER = Logger.getLogger(MoneyCommandExample.class.getName());
+    private static final String PLAYER_PREFIX = "player:";
+    private static final String MONEY_SUFFIX = ":money";
+    private static final String INFO_SUFFIX = ":info";
+    private static final String INVALID_AMOUNT = "Invalid amount";
     private RedicraftClient client;
     
     public MoneyCommandExample() {
@@ -24,7 +31,7 @@ public class MoneyCommandExample {
             // Connect to the RediCraft server
             client.connect("localhost", 7379);
         } catch (IOException e) {
-            System.err.println("Failed to connect to RediCraft server: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Failed to connect to RediCraft server: " + e.getMessage(), e);
         }
     }
     
@@ -35,14 +42,14 @@ public class MoneyCommandExample {
      */
     public String handleMoneyCommand(String playerName) {
         try {
-            String balance = client.get("player:" + playerName + ":money");
+            String balance = client.get(PLAYER_PREFIX + playerName + MONEY_SUFFIX);
             if (balance == null) {
                 // Player has no money record, return 0
                 return "0";
             }
             return balance;
         } catch (IOException e) {
-            System.err.println("Failed to get player money: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Failed to get player money: " + e.getMessage(), e);
             return "Error retrieving balance";
         }
     }
@@ -55,10 +62,10 @@ public class MoneyCommandExample {
      */
     public String handleSetMoneyCommand(String playerName, String amount) {
         try {
-            client.set("player:" + playerName + ":money", amount);
+            client.set(PLAYER_PREFIX + playerName + MONEY_SUFFIX, amount);
             return "Set " + playerName + "'s balance to " + amount;
         } catch (IOException e) {
-            System.err.println("Failed to set player money: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Failed to set player money: " + e.getMessage(), e);
             return "Error setting balance";
         }
     }
@@ -73,12 +80,13 @@ public class MoneyCommandExample {
     public String handlePayCommand(String fromPlayer, String toPlayer, String amount) {
         try {
             // Get sender's balance
-            String fromBalanceStr = client.get("player:" + fromPlayer + ":money");
+            String fromBalanceStr = client.get(PLAYER_PREFIX + fromPlayer + MONEY_SUFFIX);
             long fromBalance = fromBalanceStr == null ? 0 : Long.parseLong(fromBalanceStr);
             
             // Get recipient's balance
-            String toBalanceStr = client.get("player:" + toPlayer + ":money");
-            long toBalance = toBalanceStr == null ? 0 : Long.parseLong(toBalanceStr);
+            String toBalanceStr = client.get(PLAYER_PREFIX + toPlayer + MONEY_SUFFIX);
+            // Fix for SonarLint issue: Remove unused variable
+            // long toBalance = toBalanceStr == null ? 0 : Long.parseLong(toBalanceStr);
             
             // Parse amount to transfer
             long transferAmount = Long.parseLong(amount);
@@ -89,15 +97,15 @@ public class MoneyCommandExample {
             }
             
             // Perform the transfer using INCRBY for atomic operations
-            client.incrBy("player:" + fromPlayer + ":money", -transferAmount);
-            client.incrBy("player:" + toPlayer + ":money", transferAmount);
+            client.incrBy(PLAYER_PREFIX + fromPlayer + MONEY_SUFFIX, -transferAmount);
+            client.incrBy(PLAYER_PREFIX + toPlayer + MONEY_SUFFIX, transferAmount);
             
             return "Transferred " + transferAmount + " to " + toPlayer;
         } catch (IOException e) {
-            System.err.println("Failed to process payment: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Failed to process payment: " + e.getMessage(), e);
             return "Error processing payment";
         } catch (NumberFormatException e) {
-            return "Invalid amount";
+            return INVALID_AMOUNT;
         }
     }
     
@@ -110,13 +118,13 @@ public class MoneyCommandExample {
     public String handleGiveMoneyCommand(String playerName, String amount) {
         try {
             long givenAmount = Long.parseLong(amount);
-            long newBalance = client.incrBy("player:" + playerName + ":money", givenAmount);
+            long newBalance = client.incrBy(PLAYER_PREFIX + playerName + MONEY_SUFFIX, givenAmount);
             return "Gave " + amount + " to " + playerName + ". New balance: " + newBalance;
         } catch (IOException e) {
-            System.err.println("Failed to give money: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Failed to give money: " + e.getMessage(), e);
             return "Error giving money";
         } catch (NumberFormatException e) {
-            return "Invalid amount";
+            return INVALID_AMOUNT;
         }
     }
     
@@ -129,13 +137,13 @@ public class MoneyCommandExample {
     public String handleTakeMoneyCommand(String playerName, String amount) {
         try {
             long takenAmount = Long.parseLong(amount);
-            long newBalance = client.incrBy("player:" + playerName + ":money", -takenAmount);
+            long newBalance = client.incrBy(PLAYER_PREFIX + playerName + MONEY_SUFFIX, -takenAmount);
             return "Took " + amount + " from " + playerName + ". New balance: " + newBalance;
         } catch (IOException e) {
-            System.err.println("Failed to take money: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Failed to take money: " + e.getMessage(), e);
             return "Error taking money";
         } catch (NumberFormatException e) {
-            return "Invalid amount";
+            return INVALID_AMOUNT;
         }
     }
     
@@ -147,12 +155,12 @@ public class MoneyCommandExample {
     public String handlePlayerInfoCommand(String playerName) {
         try {
             // Store player info in a hash
-            client.hset("player:" + playerName + ":info", "name", playerName);
-            client.hset("player:" + playerName + ":info", "level", "15");
-            client.hset("player:" + playerName + ":info", "class", "Warrior");
+            client.hset(PLAYER_PREFIX + playerName + INFO_SUFFIX, "name", playerName);
+            client.hset(PLAYER_PREFIX + playerName + INFO_SUFFIX, "level", "15");
+            client.hset(PLAYER_PREFIX + playerName + INFO_SUFFIX, "class", "Warrior");
             
             // Retrieve all player info
-            Map<String, String> info = client.hgetAll("player:" + playerName + ":info");
+            Map<String, String> info = client.hgetAll(PLAYER_PREFIX + playerName + INFO_SUFFIX);
             
             StringBuilder result = new StringBuilder("Player Info for " + playerName + ":\n");
             for (Map.Entry<String, String> entry : info.entrySet()) {
@@ -161,7 +169,7 @@ public class MoneyCommandExample {
             
             return result.toString();
         } catch (IOException e) {
-            System.err.println("Failed to get player info: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Failed to get player info: " + e.getMessage(), e);
             return "Error retrieving player info";
         }
     }
@@ -186,7 +194,7 @@ public class MoneyCommandExample {
             // to retrieve and display the recent logins
             return "Login recorded for " + playerName + " (list trimming would happen in production)";
         } catch (IOException e) {
-            System.err.println("Failed to handle recent logins: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Failed to handle recent logins: " + e.getMessage(), e);
             return "Error handling recent logins";
         }
     }
@@ -211,10 +219,10 @@ public class MoneyCommandExample {
                 return "Failed to set ban expiration";
             }
         } catch (IOException e) {
-            System.err.println("Failed to temp ban player: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Failed to temp ban player: " + e.getMessage(), e);
             return "Error banning player";
         } catch (NumberFormatException e) {
-            return "Invalid duration";
+            return INVALID_AMOUNT;
         }
     }
     
@@ -229,7 +237,7 @@ public class MoneyCommandExample {
             long ttl = client.ttl("ban:" + playerName);
             return ttl >= 0; // Key exists and hasn't expired
         } catch (IOException e) {
-            System.err.println("Failed to check ban status: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Failed to check ban status: " + e.getMessage(), e);
             return false;
         }
     }
@@ -241,7 +249,7 @@ public class MoneyCommandExample {
         try {
             client.close();
         } catch (IOException e) {
-            System.err.println("Failed to close connection: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Failed to close connection: " + e.getMessage(), e);
         }
     }
 }

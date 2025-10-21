@@ -12,7 +12,7 @@
 using asio::ip::tcp;
 
 Session::Session(tcp::socket socket, Storage& storage)
-    : socket_(std::move(socket)), storage_(storage) {
+    : socket_(std::move(socket)), storage_(storage), strand_(asio::make_strand(socket_.get_executor())) {
 }
 
 void Session::start() {
@@ -22,28 +22,30 @@ void Session::start() {
 void Session::do_read() {
     auto self(shared_from_this());
     socket_.async_read_some(asio::buffer(data_, 1024),
-        [this, self](std::error_code ec, std::size_t length) {
-            if (!ec) {
-                std::string command(data_.data(), length);
-                // Remove any trailing newlines or carriage returns
-                command.erase(std::remove(command.begin(), command.end(), '\n'), command.end());
-                command.erase(std::remove(command.begin(), command.end(), '\r'), command.end());
-                
-                handle_command(command);
-                do_write();
-            }
-        });
+        asio::bind_executor(strand_,
+            [this, self](std::error_code ec, std::size_t length) {
+                if (!ec) {
+                    std::string command(data_.data(), length);
+                    // Remove any trailing newlines or carriage returns
+                    command.erase(std::remove(command.begin(), command.end(), '\n'), command.end());
+                    command.erase(std::remove(command.begin(), command.end(), '\r'), command.end());
+                    
+                    handle_command(command);
+                    do_write();
+                }
+            }));
 }
 
 void Session::do_write() {
     auto self(shared_from_this());
     asio::async_write(socket_, asio::buffer(response_),
-        [this, self](std::error_code ec, std::size_t /*length*/) {
-            if (!ec) {
-                response_.clear();
-                do_read();
-            }
-        });
+        asio::bind_executor(strand_,
+            [this, self](std::error_code ec, std::size_t /*length*/) {
+                if (!ec) {
+                    response_.clear();
+                    do_read();
+                }
+            }));
 }
 
 void Session::handle_command(const std::string& commandStr) {
@@ -211,8 +213,8 @@ void Session::handle_command(const std::string& commandStr) {
                     response_ = "(empty set)\r\n";
                 } else {
                     std::ostringstream oss;
-                    for (const auto& member : members) {
-                        oss << member << "\r\n";
+                    for (const auto& pair : members) {
+                        oss << pair.first << "\r\n";
                     }
                     response_ = oss.str();
                 }

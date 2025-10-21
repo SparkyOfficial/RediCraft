@@ -7,6 +7,8 @@ package com.redicraft.minecraft;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import com.redicraft.ConnectionPool;
 import com.redicraft.RedicraftClient;
@@ -17,7 +19,11 @@ import com.redicraft.RedicraftClient;
  * the appropriate plugin class and implement the Bukkit/Spigot API
  */
 public class AsyncMoneyPluginExample {
-    private ConnectionPool connectionPool;
+    private static final Logger LOGGER = Logger.getLogger(AsyncMoneyPluginExample.class.getName());
+    private static final String PLAYER_PREFIX = "player:";
+    private static final String MONEY_SUFFIX = ":money";
+    private static final String INTERRUPTED_MSG = "Interrupted while getting connection: ";
+    private final ConnectionPool connectionPool;
     
     public AsyncMoneyPluginExample() {
         // Create a connection pool with a maximum of 10 connections
@@ -34,15 +40,19 @@ public class AsyncMoneyPluginExample {
             RedicraftClient client = null;
             try {
                 client = connectionPool.getConnection();
-                String balance = client.get("player:" + playerName + ":money");
+                String balance = client.get(PLAYER_PREFIX + playerName + MONEY_SUFFIX);
                 if (balance == null) {
                     // Player has no money record, return 0
                     return "0";
                 }
                 return balance;
             } catch (IOException e) {
-                System.err.println("Failed to get player money: " + e.getMessage());
+                LOGGER.log(Level.SEVERE, "Failed to get player money: " + e.getMessage(), e);
                 return "Error retrieving balance";
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                LOGGER.log(Level.SEVERE, INTERRUPTED_MSG + e.getMessage(), e);
+                return "Interrupted while getting connection";
             } finally {
                 if (client != null) {
                     connectionPool.returnConnection(client);
@@ -62,11 +72,15 @@ public class AsyncMoneyPluginExample {
             RedicraftClient client = null;
             try {
                 client = connectionPool.getConnection();
-                client.set("player:" + playerName + ":money", amount);
+                client.set(PLAYER_PREFIX + playerName + MONEY_SUFFIX, amount);
                 return "Set " + playerName + "'s balance to " + amount;
             } catch (IOException e) {
-                System.err.println("Failed to set player money: " + e.getMessage());
+                LOGGER.log(Level.SEVERE, "Failed to set player money: " + e.getMessage(), e);
                 return "Error setting balance";
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                LOGGER.log(Level.SEVERE, INTERRUPTED_MSG + e.getMessage(), e);
+                return "Interrupted while getting connection";
             } finally {
                 if (client != null) {
                     connectionPool.returnConnection(client);
@@ -89,11 +103,11 @@ public class AsyncMoneyPluginExample {
                 client = connectionPool.getConnection();
                 
                 // Get sender's balance
-                String fromBalanceStr = client.get("player:" + fromPlayer + ":money");
+                String fromBalanceStr = client.get(PLAYER_PREFIX + fromPlayer + MONEY_SUFFIX);
                 long fromBalance = fromBalanceStr == null ? 0 : Long.parseLong(fromBalanceStr);
                 
                 // Get recipient's balance
-                String toBalanceStr = client.get("player:" + toPlayer + ":money");
+                String toBalanceStr = client.get(PLAYER_PREFIX + toPlayer + MONEY_SUFFIX);
                 long toBalance = toBalanceStr == null ? 0 : Long.parseLong(toBalanceStr);
                 
                 // Parse amount to transfer
@@ -105,15 +119,19 @@ public class AsyncMoneyPluginExample {
                 }
                 
                 // Perform the transfer using INCRBY for atomic operations
-                client.incrBy("player:" + fromPlayer + ":money", -transferAmount);
-                client.incrBy("player:" + toPlayer + ":money", transferAmount);
+                client.incrBy(PLAYER_PREFIX + fromPlayer + MONEY_SUFFIX, -transferAmount);
+                client.incrBy(PLAYER_PREFIX + toPlayer + MONEY_SUFFIX, transferAmount);
                 
                 return "Transferred " + transferAmount + " to " + toPlayer;
             } catch (IOException e) {
-                System.err.println("Failed to process payment: " + e.getMessage());
+                LOGGER.log(Level.SEVERE, "Failed to process payment: " + e.getMessage(), e);
                 return "Error processing payment";
             } catch (NumberFormatException e) {
                 return "Invalid amount";
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                LOGGER.log(Level.SEVERE, INTERRUPTED_MSG + e.getMessage(), e);
+                return "Interrupted while getting connection";
             } finally {
                 if (client != null) {
                     connectionPool.returnConnection(client);
@@ -129,6 +147,7 @@ public class AsyncMoneyPluginExample {
      */
     public CompletableFuture<Long> getTotalBalanceAsync(String[] playerNames) {
         // Create an array of CompletableFuture for each player's balance
+        @SuppressWarnings("unchecked")
         CompletableFuture<Long>[] futures = new CompletableFuture[playerNames.length];
         
         for (int i = 0; i < playerNames.length; i++) {
@@ -137,12 +156,16 @@ public class AsyncMoneyPluginExample {
                 RedicraftClient client = null;
                 try {
                     client = connectionPool.getConnection();
-                    String balanceStr = client.get("player:" + playerName + ":money");
+                    String balanceStr = client.get(PLAYER_PREFIX + playerName + MONEY_SUFFIX);
                     return balanceStr == null ? 0L : Long.parseLong(balanceStr);
                 } catch (IOException e) {
-                    System.err.println("Failed to get balance for " + playerName + ": " + e.getMessage());
+                    LOGGER.log(Level.SEVERE, "Failed to get balance for " + playerName + ": " + e.getMessage(), e);
                     return 0L;
                 } catch (NumberFormatException e) {
+                    return 0L;
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    LOGGER.log(Level.SEVERE, "Interrupted while getting connection for " + playerName + ": " + e.getMessage(), e);
                     return 0L;
                 } finally {
                     if (client != null) {

@@ -32,6 +32,7 @@ private:
     Storage& storage_;
     std::array<char, 1024> data_;
     std::string response_;
+    asio::strand<asio::any_io_executor> strand_;
 };
 
 #endif // REDICRAFT_SESSION_H

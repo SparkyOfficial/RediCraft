@@ -8,27 +8,44 @@
 
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
-#include <shared_mutex>
 #include <vector>
+#include <shared_mutex>
 #include <chrono>
 
 class Storage {
 public:
-    // Forward declare the internal structures
-    struct DataItem;
-    struct HashItem;
-    struct ListItem;
-    struct SetItem;
+    struct DataItem {
+        std::string value;
+        bool has_expiry = false;
+        std::chrono::steady_clock::time_point expiry;
+        
+        DataItem() = default;
+        explicit DataItem(const std::string& val) : value(val) {}
+    };
     
+    struct HashItem {
+        std::unordered_map<std::string, std::string> fields;
+        bool has_expiry = false;
+        std::chrono::steady_clock::time_point expiry;
+    };
+    
+    struct ListItem {
+        std::vector<std::string> values;
+        bool has_expiry = false;
+        std::chrono::steady_clock::time_point expiry;
+    };
+    
+    struct SetItem {
+        std::unordered_map<std::string, bool> members; // Using map for O(1) lookup
+        bool has_expiry = false;
+        std::chrono::steady_clock::time_point expiry;
+    };
+
     Storage();
     
-    // Basic key-value operations
+    // String operations
     bool set(const std::string& key, const std::string& value);
     bool get(const std::string& key, std::string& value);
-    bool ping();
-    
-    // Numeric operations
     long long incr(const std::string& key);
     long long decr(const std::string& key);
     long long incrby(const std::string& key, long long increment);
@@ -47,71 +64,34 @@ public:
     long long sadd(const std::string& key, const std::vector<std::string>& members);
     long long srem(const std::string& key, const std::vector<std::string>& members);
     bool sismember(const std::string& key, const std::string& member);
-    std::unordered_set<std::string> smembers(const std::string& key);
+    std::unordered_map<std::string, bool> smembers(const std::string& key);
     long long scard(const std::string& key);
     
-    // Expiration operations
+    // Expiration
     bool expire(const std::string& key, long long seconds);
     long long ttl(const std::string& key);
-
-    // Persistence operations
-    const std::unordered_map<std::string, DataItem>& getStringData() const;
-    const std::unordered_map<std::string, HashItem>& getHashData() const;
-    const std::unordered_map<std::string, ListItem>& getListData() const;
-    const std::unordered_map<std::string, SetItem>& getSetData() const;
-
-    // Struct definitions
-    struct DataItem {
-        std::string value;
-        std::chrono::steady_clock::time_point expiry;
-        bool has_expiry;
-        
-        DataItem() : has_expiry(false) {
-            expiry = std::chrono::steady_clock::time_point();
-        }
-        DataItem(const std::string& v) : value(v), has_expiry(false) {
-            expiry = std::chrono::steady_clock::time_point();
-        }
-    };
     
-    struct HashItem {
-        std::unordered_map<std::string, std::string> fields;
-        std::chrono::steady_clock::time_point expiry;
-        bool has_expiry;
-        
-        HashItem() : has_expiry(false) {
-            expiry = std::chrono::steady_clock::time_point();
-        }
-    };
+    // Utility
+    bool ping();
     
-    struct ListItem {
-        std::vector<std::string> values;
-        std::chrono::steady_clock::time_point expiry;
-        bool has_expiry;
-        
-        ListItem() : has_expiry(false) {
-            expiry = std::chrono::steady_clock::time_point();
-        }
-    };
+    // Data access for persistence and testing
+    const std::unordered_map<std::string, DataItem>& getStringData() const { return string_data_; }
+    const std::unordered_map<std::string, HashItem>& getHashData() const { return hash_data_; }
+    const std::unordered_map<std::string, ListItem>& getListData() const { return list_data_; }
+    const std::unordered_map<std::string, SetItem>& getSetData() const { return set_data_; }
     
-    struct SetItem {
-        std::unordered_set<std::string> members;
-        std::chrono::steady_clock::time_point expiry;
-        bool has_expiry;
-        
-        SetItem() : has_expiry(false) {
-            expiry = std::chrono::steady_clock::time_point();
-        }
-    };
-
 private:
-    // Different storage types for different data structures
+    // Data storage with separate mutexes for each type to reduce contention
     std::unordered_map<std::string, DataItem> string_data_;
     std::unordered_map<std::string, HashItem> hash_data_;
     std::unordered_map<std::string, ListItem> list_data_;
     std::unordered_map<std::string, SetItem> set_data_;
     
-    mutable std::shared_mutex mutex_;
+    // Separate mutexes for each data type to improve concurrency
+    mutable std::shared_mutex string_mutex_;
+    mutable std::shared_mutex hash_mutex_;
+    mutable std::shared_mutex list_mutex_;
+    mutable std::shared_mutex set_mutex_;
     
     // Helper methods
     bool is_expired(const std::chrono::steady_clock::time_point& expiry) const;

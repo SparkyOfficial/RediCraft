@@ -6,6 +6,8 @@
 package com.redicraft.minecraft;
 
 import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import com.redicraft.RedicraftClient;
 
@@ -15,6 +17,7 @@ import com.redicraft.RedicraftClient;
  * the appropriate plugin class and implement the Bukkit/Spigot API
  */
 public class MoneyPluginExample {
+    private static final Logger LOGGER = Logger.getLogger(MoneyPluginExample.class.getName());
     private RedicraftClient client;
     
     public MoneyPluginExample() {
@@ -22,7 +25,7 @@ public class MoneyPluginExample {
         try {
             client.connect("localhost", 7379);
         } catch (IOException e) {
-            System.err.println("Failed to connect to RediCraft server: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Failed to connect to RediCraft server: " + e.getMessage(), e);
         }
     }
     
@@ -35,7 +38,7 @@ public class MoneyPluginExample {
         try {
             return client.get("player:" + playerName + ":money");
         } catch (IOException e) {
-            System.err.println("Failed to get player money: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Failed to get player money: " + e.getMessage(), e);
             return null;
         }
     }
@@ -49,7 +52,7 @@ public class MoneyPluginExample {
         try {
             client.set("player:" + playerName + ":money", amount);
         } catch (IOException e) {
-            System.err.println("Failed to set player money: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Failed to set player money: " + e.getMessage(), e);
         }
     }
     
@@ -60,7 +63,7 @@ public class MoneyPluginExample {
         try {
             client.close();
         } catch (IOException e) {
-            System.err.println("Failed to close connection: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Failed to close connection: " + e.getMessage(), e);
         }
     }
 }

@@ -3,11 +3,9 @@
  * author: Андрій Будильников
  */
 
-#include "parser.h"
-#include "storage.h"
+#include "../include/storage.h"
 #include <iostream>
 #include <chrono>
-#include <vector>
 #include <string>
 #include <random>
 

@@ -7,6 +7,8 @@ package com.redicraft;
 
 import java.io.IOException;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -18,6 +20,7 @@ public class ConnectionPool {
     private final int maxConnections;
     private final ConcurrentLinkedQueue<RedicraftClient> availableConnections;
     private final AtomicInteger currentConnections;
+    private final Semaphore connectionSemaphore;
     
     public ConnectionPool(String host, int port, int maxConnections) {
         this.host = host;
@@ -25,14 +28,22 @@ public class ConnectionPool {
         this.maxConnections = maxConnections;
         this.availableConnections = new ConcurrentLinkedQueue<>();
         this.currentConnections = new AtomicInteger(0);
+        this.connectionSemaphore = new Semaphore(maxConnections);
     }
     
     /**
      * Get a connection from the pool
      * @return a RedicraftClient connection
      * @throws IOException if unable to create a new connection
+     * @throws InterruptedException if the thread is interrupted while waiting
      */
-    public RedicraftClient getConnection() throws IOException {
+    public RedicraftClient getConnection() throws IOException, InterruptedException {
+        // Try to acquire a permit for a connection
+        // This will block until a connection is available or timeout occurs
+        if (!connectionSemaphore.tryAcquire(5, TimeUnit.SECONDS)) {
+            throw new IOException("Timeout waiting for a connection from the pool");
+        }
+        
         // Try to get an existing connection from the pool
         RedicraftClient client = availableConnections.poll();
         
@@ -41,27 +52,10 @@ public class ConnectionPool {
             return client;
         }
         
-        // No available connections, check if we can create a new one
-        if (currentConnections.get() < maxConnections) {
-            // Create a new connection
-            client = new RedicraftClient();
-            client.connect(host, port);
-            currentConnections.incrementAndGet();
-            return client;
-        }
-        
-        // We've reached the maximum number of connections
-        // This implementation blocks until a connection is available
-        // In a more sophisticated implementation, we might want to have a timeout
-        while ((client = availableConnections.poll()) == null) {
-            try {
-                Thread.sleep(10); // Short sleep to avoid busy waiting
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IOException("Interrupted while waiting for a connection");
-            }
-        }
-        
+        // No available connections, create a new one
+        client = new RedicraftClient();
+        client.connect(host, port);
+        currentConnections.incrementAndGet();
         return client;
     }
     
@@ -72,6 +66,8 @@ public class ConnectionPool {
     public void returnConnection(RedicraftClient client) {
         if (client != null) {
             availableConnections.offer(client);
+            // Release the permit so other threads can acquire connections
+            connectionSemaphore.release();
         }
     }
     
@@ -88,6 +84,8 @@ public class ConnectionPool {
             }
         }
         currentConnections.set(0);
+        // Reset the semaphore to allow new connections
+        connectionSemaphore.release(maxConnections - connectionSemaphore.availablePermits());
     }
     
     /**
